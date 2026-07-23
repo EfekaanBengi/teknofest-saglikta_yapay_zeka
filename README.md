@@ -65,10 +65,13 @@ Her paneldeki Patojenik (1) ve Benign (0) siniflarinin dagilimi:
 
 ### Eksik Veri Haritalari
 
-![MASTER Eksik Veri](outputs/MASTER/phase1_missing_map.png)
-![KANSER Eksik Veri](outputs/KANSER/phase1_missing_map.png)
-![PAH Eksik Veri](outputs/PAH/phase1_missing_map.png)
-![CFTR Eksik Veri](outputs/CFTR/phase1_missing_map.png)
+| MASTER | KANSER |
+|:------:|:------:|
+| ![MASTER Eksik Veri](outputs/MASTER/phase1_missing_map.png) | ![KANSER Eksik Veri](outputs/KANSER/phase1_missing_map.png) |
+
+| PAH | CFTR |
+|:---:|:----:|
+| ![PAH Eksik Veri](outputs/PAH/phase1_missing_map.png) | ![CFTR Eksik Veri](outputs/CFTR/phase1_missing_map.png) |
 
 ### Korelasyon Haritalari
 
