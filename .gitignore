@@ -1,0 +1,10 @@
+# CSV dosyaları hariç tut
+*.csv
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Outputs klasörü (isteğe bağlı, isterseniz kaldırın)
+# outputs/

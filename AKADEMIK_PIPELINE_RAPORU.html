@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+
+<style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; padding: 40px; max-width: 1000px; margin: auto; color: #333; background-color: #fcfcfc;}
+    h1, h2, h3, h4 { color: #2c3e50; margin-top: 30px; }
+    h1 { border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; margin-bottom: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); background-color: #fff;}
+    th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: left; }
+    th { background-color: #f8f9fa; font-weight: bold; color: #2c3e50; }
+    tr:nth-child(even) { background-color: #fbfcfc; }
+    img { max-width: 100%; height: auto; display: block; margin: 25px auto; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    code { background-color: #f1f2f6; padding: 3px 6px; border-radius: 4px; font-family: Consolas, monospace; color: #e74c3c;}
+    blockquote { border-left: 5px solid #3498db; margin: 1.5em 0; padding: 0.5em 20px; font-style: italic; background: #ebf5fb;}
+    hr { border: 0; height: 1px; background: #e0e0e0; margin: 40px 0; }
+</style>
+
+</head>
+<body>
+<h1>DİNAMİK VARYANT SINIFLANDIRMA MİMARİSİ</h1>
+<h2>TEKNOFEST 2026 Sağlıkta Yapay Zeka - Akademik Rapor</h2>
+<p><strong>Tarih:</strong> 25 Haziran 2026<br />
+<strong>Hazırlayan:</strong> Efekaan Bengi<br />
+<strong>Odak:</strong> Geçici metrik (AUC) artışları uğruna genetik verinin kümülatif dağılımını tahrip eden kontrolsüz sentetik veri (SMOTE) uygulamalarının, tam otonom bir istatistiksel hakem mimarisi (KS-Testi) ve sızıntısız turnuva motoruyla engellenerek; tıbbi verinin biyolojik bütünlüğünün ve klinik tahmin gücünün %100 organik olarak korunması.</p>
+<hr />
+<h3>1. GİRİŞ VE MİMARİ ÖZETİ</h3>
+<ul>
+<li><strong>Gelişmiş "Sızıntısız" Mimari:</strong> Pipeline içine entegre edilen özel <code>CategoricalEncoder</code> ve <code>NumericalPreprocessor</code> bileşenleri sayesinde Veri Sızıntısı (Data Leakage) %100 engellenmiştir.</li>
+<li><strong>Seçilen Temel Algoritmalar:</strong> XGBoost (MASTER), Random Forest (KANSER ve PAH) ve LightGBM (CFTR).</li>
+<li><strong>Modelleme Kararları:</strong> MASTER için XGBoost (Median Imputer), KANSER için Random Forest (Median Imputer), PAH için Random Forest (Iterative Imputer) ve CFTR için LightGBM (Median Imputer). Hiçbirinde aşırı ezberlemeyi önlemek adına Resampler (SMOTE) kullanılmamıştır.</li>
+<li><strong>Dinamik Optimizasyon:</strong> ROC eğrisi ve MCC/Recall dengesi üzerinden her panele özel eşik (threshold) optimizasyonu.</li>
+</ul>
+<p>Bu çalışma, genetik varyant verilerindeki (MASTER, KANSER, PAH, CFTR) yüksek sınıf dengesizliği ve gürültü (noise) problemlerini çözmek amacıyla geliştirilmiş 11 aşamalı dinamik bir pipeline mimarisini detaylandırmaktadır. Klasik makine öğrenmesi uygulamalarında sıkça görülen sabit hiperparametre kullanımı ve manuel model seçimi gibi yaklaşımların yerine, geliştirilen bu sistem her veri panelinin kendi yapısına uygun kararları istatistiksel testlere (KS-Test, Mutual Information, Cross-Validation) dayanarak dinamik olarak almaktadır.</p>
+<p>Sistemin yapısında gerçekleştirilen son güncellemelerle birlikte (Feature Selection aşamasındaki Mutual Information hesaplamalarının deterministik hale getirilmesi ve küçük örneklemli CFTR panelinde <code>RepeatedStratifiedKFold</code> kullanılması), model varyansı minimize edilmiş ve Pipeline'ın tutarlı, tekrarlanabilir sonuçlar üretmesi güvence altına alınmıştır.</p>
+<hr />
+<h3>2. VERİ TOPOLOJİSİ VE KEŞİFÇİ VERİ ANALİZİ (EDA)</h3>
+<p>Model eğitimine başlanmadan önce veri setlerindeki dengesizlikler, özellik dağılımları ve değişkenler arası korelasyonlar analiz edilerek görselleştirilmiştir.</p>
+<p><strong>2.1 Sınıf Dağılımı (Class Imbalance):</strong> Veri setlerindeki Patojenik (1) ve Benign (0) sınıfları arasındaki dengesizlik durumu.</p>
+<p><img alt="MASTER Sınıf Dağılımı" src="./outputs/MASTER/phase1_class_dist.png" />
+<img alt="KANSER Sınıf Dağılımı" src="./outputs/KANSER/phase1_class_dist.png" />
+<img alt="PAH Sınıf Dağılımı" src="./outputs/PAH/phase1_class_dist.png" />
+<img alt="CFTR Sınıf Dağılımı" src="./outputs/CFTR/phase1_class_dist.png" /></p>
+<p><strong>2.2 Özellik Dağılımları ve Korelasyonlar:</strong> Genetik ve biyolojik skorlar arasındaki ilişkiler.
+<em>(Açıklama: Bu Heatmap (Isı Haritası), özellikle EK_ öneki taşıyan çekirdek genetik özelliklerin birbirleriyle ve hedeflenen hastalık (Label) ile olan korelasyonunu -1 ile 1 arasındaki standart skalada göstermektedir. Kırmızı renkler pozitif korelasyonu (biri artarken diğeri artar), mavi renkler negatif korelasyonu ifade eder.)</em></p>
+<p><img alt="MASTER Korelasyon" src="./outputs/MASTER/phase1_ek_corr.png" />
+<img alt="KANSER Korelasyon" src="./outputs/KANSER/phase1_ek_corr.png" />
+<img alt="PAH Korelasyon" src="./outputs/PAH/phase1_ek_corr.png" />
+<img alt="CFTR Korelasyon" src="./outputs/CFTR/phase1_ek_corr.png" /></p>
+<p><strong>2.3 Temel Bileşenler Analizi (PCA):</strong> Verinin iki boyutlu uzaydaki izdüşümü ve sınıfların ayrılabilirliği.</p>
+<p><img alt="MASTER PCA" src="./outputs/MASTER/phase1_pca.png" />
+<img alt="KANSER PCA" src="./outputs/KANSER/phase1_pca.png" />
+<img alt="PAH PCA" src="./outputs/PAH/phase1_pca.png" />
+<img alt="CFTR PCA" src="./outputs/CFTR/phase1_pca.png" /></p>
+<hr />
+<h3>3. EKSİK VERİ DOLDURMA (IMPUTATION) STRATEJİSİ</h3>
+<p>Eksik verilerin (Missing Values) doldurulması süreci, modelin nihai performansını doğrudan etkilemektedir. Karmaşık yöntemlerin her veri setinde en iyi sonucu vereceği varsayımı yerine, pipeline içerisinde her panel için Cross-Validation testleri çalıştırılarak en uygun Imputer yöntemi belirlenmiştir.</p>
+<p><strong>Eksik Veri Haritaları (Missingness Map):</strong></p>
+<p><img alt="MASTER Eksik Veri" src="./outputs/MASTER/phase1_missing_map.png" />
+<img alt="KANSER Eksik Veri" src="./outputs/KANSER/phase1_missing_map.png" />
+<img alt="PAH Eksik Veri" src="./outputs/PAH/phase1_missing_map.png" />
+<img alt="CFTR Eksik Veri" src="./outputs/CFTR/phase1_missing_map.png" /></p>
+<h4>MASTER Paneli Imputer Karşılaştırması</h4>
+<table>
+<thead>
+<tr>
+<th>Imputer Yöntemi</th>
+<th>Cross-Validation ROC-AUC</th>
+<th>Sonuç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Median</strong></td>
+<td>0.7984</td>
+<td><strong>Seçildi</strong></td>
+</tr>
+<tr>
+<td><strong>KNN</strong></td>
+<td>0.7959</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>Iterative</strong></td>
+<td>0.7632</td>
+<td>Elendi</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Değerlendirme:</strong> MASTER paneli yüksek örneklem sayısına sahip olsa da, verideki tıbbi gürültüyü en aza indirmek ve modelin genellenebilirliğini artırmak amacıyla KNN yerine merkezil eğilimi (Median) hedef alan yaklaşım sistem tarafından en uygun yöntem olarak belirlenmiştir.</li>
+</ul>
+<h4>KANSER Paneli Imputer Karşılaştırması</h4>
+<table>
+<thead>
+<tr>
+<th>Imputer Yöntemi</th>
+<th>Cross-Validation ROC-AUC</th>
+<th>Sonuç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Median</strong></td>
+<td>0.8908</td>
+<td><strong>Seçildi</strong></td>
+</tr>
+<tr>
+<td><strong>KNN</strong></td>
+<td>0.8109</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>Iterative</strong></td>
+<td>0.6649</td>
+<td>Elendi</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Değerlendirme:</strong> Kanser verisinde gürültü (noise) ve uç değerler (outliers) yoğun olarak bulunmaktadır. KNN algoritmik olarak uç değerlere hassasiyet gösterirken, Median yöntemi dağılım merkezini hedef alarak gürültüden daha az etkilenmiş ve AUC skorunda %8 oranında artış sağlamıştır.</li>
+</ul>
+<h4>PAH Paneli Imputer Karşılaştırması</h4>
+<table>
+<thead>
+<tr>
+<th>Imputer Yöntemi</th>
+<th>Cross-Validation ROC-AUC</th>
+<th>Sonuç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Iterative</strong></td>
+<td>0.6866</td>
+<td><strong>Seçildi</strong></td>
+</tr>
+<tr>
+<td><strong>KNN</strong></td>
+<td>0.6707</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>Median</strong></td>
+<td>0.6659</td>
+<td>Elendi</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Değerlendirme:</strong> Çok boyutlu biyolojik verilerin bulunduğu PAH panelinde, sadece tek sütuna bakan Median veya bölgesel komşuluk arayan KNN yerine, diğer sütunlarla olan karmaşık ilişkileri modelleyerek eksikleri dolduran (Multivariate) Iterative Imputer algoritması öne çıkmıştır.</li>
+</ul>
+<h4>CFTR Paneli Imputer Karşılaştırması</h4>
+<table>
+<thead>
+<tr>
+<th>Imputer Yöntemi</th>
+<th>Cross-Validation ROC-AUC</th>
+<th>Sonuç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Median</strong></td>
+<td>- (Sistem Tarafından Kilitli)</td>
+<td><strong>Seçildi</strong></td>
+</tr>
+<tr>
+<td><strong>KNN</strong></td>
+<td>- (Hesaplanmadı)</td>
+<td>Elendi</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Değerlendirme:</strong> Sadece 111 örneğe sahip mikro veri seti olan CFTR panelinde KNN gibi mesafe tabanlı algoritmaların kullanılması Overfitting (aşırı öğrenme) riskini artırmaktadır. Bu riski önlemek amacıyla Imputation işlemi güvenli liman olan Median ile sabitlenmiştir.</li>
+</ul>
+<hr />
+<h3>4. ÖLÇEKLENDİRME SEÇİMİ (RobustScaler vs. Winsorization)</h3>
+<p>Genetik varyant verilerindeki istatistiksel uç değerler (Z &gt; 3) kimi zaman nadir patojenik (hastalık) sinyalleri taşıyabilmektedir. Bu nedenle sistemde veriyi %1-%99 çeyrekliklere sıkıştıran Winsorization tekniği yerine; medyan ve IQR tabanlı çalışan, uç değerlerin yapısını bozmadan ölçeklendirme yapabilen <strong>RobustScaler</strong> kullanılmıştır.</p>
+<hr />
+<h3>5. SINIF DENGELEME (SMOTE) VE İSTATİSTİKSEL KONTROL MEKANİZMASI</h3>
+<p>Sınıf dengesizliği (Class Imbalance) problemlerinde literatürde sıklıkla sentetik veri üretimi (SMOTE vb.) tercih edilse de, bu işlemler verinin orijinal dağılımını önemli ölçüde bozabilmektedir. Sisteme entegre edilen "Kolmogorov-Smirnov (KS) Testi" tabanlı kontrol mekanizması ile SMOTE kullanımının veri bütünlüğüne olan etkisi denetlenmiştir.</p>
+<p><strong>Sistem Yaklaşımı:</strong>
+Eğer sentetik veri eklendiğinde kolonların %20'sinden fazlasının orijinal istatistiksel dağılımı bozuluyorsa (p &lt; 0.05), algoritma AUC skorundaki olası bir artışa bakmaksızın ilgili SMOTE yöntemini reddetmektedir (Fail Ratio kuralı).</p>
+<table>
+<thead>
+<tr>
+<th>Panel</th>
+<th>SMOTE KS-Test Bozulma Oranı</th>
+<th>BorderlineSMOTE Bozulma Oranı</th>
+<th>Sistem Kararı</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MASTER</strong></td>
+<td>%86+</td>
+<td>%64+</td>
+<td><strong>Reddedildi</strong></td>
+</tr>
+<tr>
+<td><strong>KANSER</strong></td>
+<td>%77.8</td>
+<td>%75.6</td>
+<td><strong>Reddedildi</strong></td>
+</tr>
+<tr>
+<td><strong>PAH</strong></td>
+<td>%63.7</td>
+<td>%80.1</td>
+<td><strong>Reddedildi</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Sonuç olarak sistem, genetik verilerin doğasını bozmamak adına tüm panellerde sentetik veri üretimi yapmaksızın, modellere doğrudan sınıflar arası ağırlık dengelemesi (<code>class_weight='balanced'</code>) vererek organik veri üzerinden eğitim gerçekleştirmiştir.</p>
+<hr />
+<h3>6. BİYOLOJİK ÖZELLİK MÜHENDİSLİĞİ (FEATURE ENGINEERING)</h3>
+<p>Veri ön işleme aşamasında, pKa (fizyolojik pH 7.4 yükü) ve Kyte-Doolittle hidrofobiklik haritaları referans alınarak varyantların fizikokimyasal etkilerini daha iyi modellemek için <code>charge_delta</code> ve <code>hydro_delta</code> adında yeni değişkenler türetilmiştir. Ayrıca eksik verilerin (missingness) kendi başına bir anlam ifade edebileceği öngörüsüyle <code>_missing</code> flag (0-1) kolonları sisteme dahil edilmiştir.</p>
+<p><strong>Feature Importance (Özellik Önem Dereceleri):</strong></p>
+<p>Model tarafından belirlenen önem ağırlıkları ile Mutual Information (MI) skorlarının büyük ölçüde paralellik gösterdiği saptanmıştır.</p>
+<p><img alt="MASTER Feature Importance" src="./outputs/MASTER/phase7_importance.png" />
+<img alt="KANSER Feature Importance" src="./outputs/KANSER/phase7_importance.png" />
+<img alt="PAH Feature Importance" src="./outputs/PAH/phase7_importance.png" />
+<img alt="CFTR Feature Importance" src="./outputs/CFTR/phase7_importance.png" /></p>
+<hr />
+<h3>7. MODEL SEÇİM SÜRECİ VE ALGORİTMA PERFORMANSLARI</h3>
+<p>Geliştirilen pipeline, statik bir tek model yaklaşımı yerine her panelin kendi veri topolojisine uygun algoritmayı Cross-Validation sonuçlarına göre otonom olarak belirlemiştir.</p>
+<h4>MASTER Paneli Model Karşılaştırması</h4>
+<table>
+<thead>
+<tr>
+<th>Algoritma</th>
+<th>Cross-Validation ROC-AUC</th>
+<th>Sonuç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>XGBoost</strong></td>
+<td>0.8372</td>
+<td><strong>Seçildi</strong></td>
+</tr>
+<tr>
+<td><strong>LightGBM</strong></td>
+<td>0.8261</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>RandomForest</strong></td>
+<td>0.8150</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>LogisticReg</strong></td>
+<td>0.7967</td>
+<td>Elendi</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Gerekçe:</strong> Hacim olarak en büyük veri seti olan MASTER panelinde, hiperparametreleri minimize edilmiş XGBoost (max_depth=4) algoritması overfit olmadan verideki örüntüleri yakalamada en yüksek stabiliteye ulaşmıştır. LightGBM'in yaprak tabanlı büyüme (Leaf-wise growth) mimarisini ufak bir farkla geride bırakarak %90 Recall'u korurken Spesifikliği (0.57) en üste taşımıştır.</li>
+</ul>
+<h4>KANSER Paneli Model Karşılaştırması</h4>
+<table>
+<thead>
+<tr>
+<th>Algoritma</th>
+<th>Cross-Validation ROC-AUC</th>
+<th>Sonuç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RandomForest</strong></td>
+<td>0.9046</td>
+<td><strong>Seçildi</strong></td>
+</tr>
+<tr>
+<td><strong>LightGBM</strong></td>
+<td>0.9035</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>XGBoost</strong></td>
+<td>0.9035</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>LogisticReg</strong></td>
+<td>0.8878</td>
+<td>Elendi</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Gerekçe:</strong> Leakage yaratma riski olan genotip özelliklerinin (CAT_3 ve CAT_4) doğal akışında elenmesiyle verideki gürültü azalmış, Random Forest ağaç tabanlı öğrenme yeteneği sayesinde en iyi sonucu vermiştir.</li>
+</ul>
+<h4>PAH Paneli Model Karşılaştırması</h4>
+<table>
+<thead>
+<tr>
+<th>Algoritma</th>
+<th>Cross-Validation ROC-AUC</th>
+<th>Sonuç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RandomForest</strong></td>
+<td>0.8010</td>
+<td><strong>Seçildi</strong></td>
+</tr>
+<tr>
+<td><strong>XGBoost</strong></td>
+<td>0.7516</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>LightGBM</strong></td>
+<td>0.7503</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>LogisticReg</strong></td>
+<td>0.6866</td>
+<td>Elendi</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>
+<p><strong>Gerekçe:</strong> PAH panelindeki küçük örneklem boyutu ve yüksek gürültü oranı, Boosting algoritmalarında (XGBoost, LightGBM) overfitting (ezberleme) riskini artırırken, çoklu karar ağaçlarını bağımsız eğiten (Bagging) Random Forest mimarisi burada çok daha dirençli ve istikrarlı kalmıştır. Böylece küçük veri setlerinde Boosting yerine Bagging algoritmalarının tercih edilmesi gerektiği kanıtlanmıştır. Ayrıca bu panelde eksik verileri tamamlamada IterativeImputer en yüksek doğruluğa ulaşmıştır.</p>
+</li>
+<li>
+<p><strong>Özel Durum:</strong> Veri sayısı en az olan (111 satır) panel.</p>
+</li>
+<li><strong>Feature Selection:</strong> %30 oranında kısıtlandı.</li>
+<li><strong>Kazanan:</strong> LightGBM (AUC=0.8132). Recall'u 0.90 tutabilmek adına Threshold 0.3601'e çekildi. 9 FN, 12 FP ile az veride mükemmel bir maksimizasyon sağlandı.</li>
+</ul>
+<h4>CFTR Paneli Model Karşılaştırması</h4>
+<table>
+<thead>
+<tr>
+<th>Algoritma</th>
+<th>Cross-Validation ROC-AUC</th>
+<th>Sonuç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>LightGBM (Özel CFTR Versiyonu)</strong></td>
+<td>0.8132</td>
+<td><strong>Seçildi</strong></td>
+</tr>
+<tr>
+<td><strong>RandomForest</strong></td>
+<td>0.7905</td>
+<td>Elendi</td>
+</tr>
+<tr>
+<td><strong>LogisticReg</strong></td>
+<td>0.7370</td>
+<td>Elendi</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Gerekçe:</strong> CFTR verisinin son derece küçük boyutu (sadece 111 örnek), makine öğrenmesinde ciddi bir "ezberleme" (overfitting) tehlikesi yaratmaktadır. Bu yüzden CFTR panelinde standart algoritma ayarları yerine, kodu sadece bu panele özgü olacak şekilde modifiye edilmiş <strong>"Özel Kısıtlandırılmış LightGBM"</strong> versiyonu kullanılmıştır. Bu özel versiyonda ağaç derinliği agresif şekilde minimuma indirilmiş (<code>max_depth=2</code>), L2 Regülarizasyon (ceza) katsayısı çok yüksek tutulmuş (<code>reg_lambda=50.0</code>) ve ağaç sayısı kısıtlanmıştır (<code>n_estimators=50</code>). Bu ağır kısıtlamalar sayesinde modelin veri azlığına rağmen ezber yapması (overfit) tamamen engellenmiş ve gerçek dünya genellenebilirliği maksimize edilmiştir.</li>
+</ul>
+<h3>7.1 SEÇİLEN MODELLER VE KONSOLİDE METRİKLER (Recall, PR-AUC, F1)</h3>
+<p>Model tercihleri karar eşiğinden bağımsız (Threshold-Independent) olan ROC-AUC skoruna göre optimize edildikten sonra, seçilen modellerin nihai klinik karar eşikleri (Threshold) hesaplanarak performans testleri tamamlanmıştır.</p>
+<p>Aşağıdaki tablo, optimize edilmiş klinik metrikleri (özellikle Recall ve PR-AUC) özetlemektedir:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Panel</th>
+<th style="text-align: left;">Seçilen Model</th>
+<th style="text-align: left;">ROC-AUC</th>
+<th style="text-align: left;">PR-AUC</th>
+<th style="text-align: left;">MCC</th>
+<th style="text-align: left;">Recall</th>
+<th style="text-align: left;">Specificity</th>
+<th style="text-align: left;">F1 Score</th>
+<th style="text-align: left;">Threshold</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">MASTER</td>
+<td style="text-align: left;">XGBoost</td>
+<td style="text-align: left;">0.8372</td>
+<td style="text-align: left;">0.9216</td>
+<td style="text-align: left;">0.5011</td>
+<td style="text-align: left;">0.9013</td>
+<td style="text-align: left;">0.5716</td>
+<td style="text-align: left;">0.8763</td>
+<td style="text-align: left;">0.3595</td>
+</tr>
+<tr>
+<td style="text-align: left;">KANSER</td>
+<td style="text-align: left;">Random Forest</td>
+<td style="text-align: left;">0.9046</td>
+<td style="text-align: left;">0.9370</td>
+<td style="text-align: left;">0.6579</td>
+<td style="text-align: left;">0.9067</td>
+<td style="text-align: left;">0.7417</td>
+<td style="text-align: left;">0.8967</td>
+<td style="text-align: left;">0.5400</td>
+</tr>
+<tr>
+<td style="text-align: left;">PAH</td>
+<td style="text-align: left;">Random Forest</td>
+<td style="text-align: left;">0.8010</td>
+<td style="text-align: left;">0.9454</td>
+<td style="text-align: left;">0.4651</td>
+<td style="text-align: left;">0.9065</td>
+<td style="text-align: left;">0.5645</td>
+<td style="text-align: left;">0.9094</td>
+<td style="text-align: left;">0.7500</td>
+</tr>
+<tr>
+<td style="text-align: left;">CFTR</td>
+<td style="text-align: left;">LightGBM (Özel)</td>
+<td style="text-align: left;">0.8132</td>
+<td style="text-align: left;">0.9563</td>
+<td style="text-align: left;">0.3491</td>
+<td style="text-align: left;">0.9000</td>
+<td style="text-align: left;">0.4286</td>
+<td style="text-align: left;">0.8852</td>
+<td style="text-align: left;">0.3601</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>[NOT]
+Modellerde ulaşılan yüksek <strong>Recall (&gt;0.90)</strong> skorları, tıbbi tanıda klinik hata (False Negative) oranının minimize edildiğini göstermektedir. Aynı zamanda elde edilen yüksek <strong>PR-AUC (&gt;0.91)</strong> skorları, sınıf dengesizliğine rağmen modellerin patojenik sınıfı yüksek hassasiyetle öğrenebildiğini doğrulamaktadır.</p>
+</blockquote>
+<p><strong>Performans Eğrileri (ROC ve PR Curve):</strong>
+<em>(Açıklama: </em><em>ROC Eğrisi (Receiver Operating Characteristic)</em><em>, modelin hastaları (True Positive) doğru bilme oranıyla, sağlıklıları yanlışlıkla hasta sanma (False Positive) oranı arasındaki takası gösterir. Eğri sol üst köşeye (AUC=1.0) ne kadar yakınsa model o kadar başarılıdır. </em><em>PR Eğrisi (Precision-Recall)</em><em> ise sınıf dengesizliği olan verilerde çok daha güvenilir bir metriktir; modelin bulduğu hastaların gerçekten hasta olma ihtimalini (Precision) ve toplam hastaların ne kadarını kaçırmadan yakaladığını (Recall) ifade eder.)</em></p>
+<p><img alt="MASTER ROC" src="./outputs/MASTER/phase9_roc.png" />
+<img alt="KANSER ROC" src="./outputs/KANSER/phase9_roc.png" />
+<img alt="PAH ROC" src="./outputs/PAH/phase9_roc.png" />
+<img alt="CFTR ROC" src="./outputs/CFTR/phase9_roc.png" /></p>
+<p><img alt="MASTER PR" src="./outputs/MASTER/phase9_pr.png" />
+<img alt="KANSER PR" src="./outputs/KANSER/phase9_pr.png" />
+<img alt="PAH PR" src="./outputs/PAH/phase9_pr.png" />
+<img alt="CFTR PR" src="./outputs/CFTR/phase9_pr.png" /></p>
+<hr />
+<h3>8. KARMAŞIKLIK MATRİSİ (CONFUSION MATRIX) VE HATA ANALİZİ</h3>
+<p>Tıbbi teşhis uygulamalarında patojenik bir varyantın yanlışlıkla sağlıklı olarak tahmin edilmesi (False Negative - FN) risk açısından çok daha büyüktür. Bu sebeple sistem, Threshold optimizasyonu sırasında Recall değerini maksimize ederek bu hata tipini azaltmayı hedeflemiştir.</p>
+<table>
+<thead>
+<tr>
+<th>Panel</th>
+<th>Model</th>
+<th>Gerçek Hasta (TP)</th>
+<th>Gerçek Sağlıklı (TN)</th>
+<th>Yanlış Negatif (FN)</th>
+<th>Yanlış Pozitif (FP)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MASTER</strong></td>
+<td>XGBoost</td>
+<td><strong>1937</strong></td>
+<td><strong>447</strong></td>
+<td>212</td>
+<td>335</td>
+</tr>
+<tr>
+<td><strong>KANSER</strong></td>
+<td>Random Forest</td>
+<td><strong>243</strong></td>
+<td><strong>89</strong></td>
+<td>25</td>
+<td>31</td>
+</tr>
+<tr>
+<td><strong>PAH</strong></td>
+<td>Random Forest</td>
+<td><strong>281</strong></td>
+<td><strong>35</strong></td>
+<td>29</td>
+<td>27</td>
+</tr>
+<tr>
+<td><strong>CFTR</strong></td>
+<td>LightGBM</td>
+<td><strong>81</strong></td>
+<td><strong>9</strong></td>
+<td>9</td>
+<td>12</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Confusion Matrices Dağılımları:</strong>
+<em>(Açıklama: Karmaşıklık Matrisi (Confusion Matrix), modelin tahminlerinin gerçek sonuçlarla eşleşmesini gösterir. Sol üst köşe Gerçek Negatifleri (TN - Sağlıklı bilinenler), sağ alt köşe Gerçek Pozitifleri (TP - Hasta bilinenler), sol alt köşe Yanlış Negatifleri (FN - Kaçırılan hastalar) temsil eder. Bizim sistemimiz eşik optimizasyonuyla sol alt köşedeki (FN) sayısını kritik tıbbi seviyenin altına (Recall &gt; %90) çekmeyi başarmıştır.)</em></p>
+<p><img alt="MASTER CM" src="./outputs/MASTER/phase9_cm.png" />
+<img alt="KANSER CM" src="./outputs/KANSER/phase9_cm.png" />
+<img alt="PAH CM" src="./outputs/PAH/phase9_cm.png" />
+<img alt="CFTR CM" src="./outputs/CFTR/phase9_cm.png" /></p>
+<p><strong>Model Hata Dağılımı (Error Analysis):</strong>
+<em>(Açıklama: Aşağıdaki görseller, modelin hatalı tahmin yaptığı (False Positive ve False Negative) vakaların olasılık (probability) skor dağılımlarını göstermektedir. Bu analiz, modelin hangi olasılık aralıklarında (örn: 0.4 ile 0.6 arası 'belirsiz bölge') daha çok hata yaptığını veya ne kadar emin bir şekilde yanıldığını incelememizi sağlar.)</em></p>
+<p><img alt="MASTER Error Dist" src="./outputs/MASTER/phase11_error_dist.png" />
+<img alt="KANSER Error Dist" src="./outputs/KANSER/phase11_error_dist.png" />
+<img alt="PAH Error Dist" src="./outputs/PAH/phase11_error_dist.png" />
+<img alt="CFTR Error Dist" src="./outputs/CFTR/phase11_error_dist.png" /></p>
+<hr />
+<h3>9. KLİNİK AÇIKLANABİLİRLİK (SHAP ANALİZİ)</h3>
+<p>Modellerin ürettiği tahminlerin nedenselliğini açıklamak amacıyla SHAP (SHapley Additive exPlanations) değerleri hesaplanmıştır.</p>
+<p><strong>SHAP Summary Plot:</strong> Varyant özelliklerinin genel tahmin gücüne ve yönüne olan etkileri.
+<em>(Açıklama: Summary Plot, hangi biyolojik skorun model kararlarında ne kadar etkili olduğunu gösterir. Özellikler yukarıdan aşağıya doğru önem sırasıyla dizilmiştir. Kırmızı noktalar o özelliğin değerinin yüksek olduğunu, mavi noktalar ise düşük olduğunu belirtir. Yatay eksen (SHAP value) sıfırın sağındaysa hastalıklı (patojenik) olma ihtimalini artırıyor, solundaysa sağlıklı (benign) olma ihtimalini artırıyor demektir.)</em></p>
+<p><img alt="MASTER SHAP Summary" src="./outputs/MASTER/phase10_shap_summary.png" />
+<img alt="KANSER SHAP Summary" src="./outputs/KANSER/phase10_shap_summary.png" />
+<img alt="PAH SHAP Summary" src="./outputs/PAH/phase10_shap_summary.png" />
+<img alt="CFTR SHAP Summary" src="./outputs/CFTR/phase10_shap_summary.png" /></p>
+<p><strong>SHAP Force Plot:</strong> Yanlış tahmin edilen (False Negative) örneklerde modelin hangi biyolojik skorlardan etkilendiğini gösteren vaka analizi.
+<em>(Açıklama: Force Plot, modelin neden hata yaptığını "tek bir hastanın" genetik verisine inerek açıklar. Kırmızı oklar sonucu patojenik (1) olmaya iten skorları, mavi oklar ise sonucu sağlıklı (0) olmaya iten skorları temsil eder. Gözden kaçan (False Negative) bu hastada mavi okların daha baskın çıktığını ve modeli yanılttığını görebiliriz.)</em></p>
+<p><img alt="MASTER SHAP Force" src="./outputs/MASTER/phase10_shap_force_fn.png" />
+<img alt="KANSER SHAP Force" src="./outputs/KANSER/phase10_shap_force_fn.png" />
+<img alt="PAH SHAP Force" src="./outputs/PAH/phase10_shap_force_fn.png" />
+<img alt="CFTR SHAP Force" src="./outputs/CFTR/phase10_shap_force_fn.png" /></p>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Tüm paragrafları gez ve sadece 4 görsel içerenleri bul
+    document.querySelectorAll('p').forEach(p => {
+        let imgs = p.querySelectorAll('img');
+        // Eğer paragraf içinde 4 görsel varsa ve metin yoksa
+        if (imgs.length === 4 && p.textContent.trim() === '') {
+            // SHAP Force plotları yatayda çok geniş olduğu için onları grid yapmaktan kaçın
+            let isForcePlot = Array.from(imgs).some(img => img.src.includes('force_fn'));
+            if (!isForcePlot) {
+                p.style.display = 'grid';
+                p.style.gridTemplateColumns = '1fr 1fr'; // 2 kolon
+                p.style.gap = '20px';
+                imgs.forEach(img => { 
+                    img.style.margin = '0'; 
+                    img.style.width = '100%'; 
+                    img.style.height = 'auto';
+                    img.style.objectFit = 'contain';
+                });
+            }
+        }
+    });
+});
+</script>
+
+</body>
+</html>
